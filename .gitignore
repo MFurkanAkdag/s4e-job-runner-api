@@ -3,3 +3,8 @@
 id_ed25519*
 *.pem
 *.key
+
+# never commit keys
+*ed25519*
+*.pem
+*.key
