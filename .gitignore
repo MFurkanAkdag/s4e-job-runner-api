@@ -1,0 +1,5 @@
+
+# never commit keys
+id_ed25519*
+*.pem
+*.key
