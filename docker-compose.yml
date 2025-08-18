@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: s4e_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: s4e_user
+      POSTGRES_PASSWORD: s4e_pass
+      POSTGRES_DB: s4e
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: s4e_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_VHOST: s4e
+      RABBITMQ_DEFAULT_USER: s4e_broker
+      RABBITMQ_DEFAULT_PASS: s4e_broker_pass
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: s4e_api
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: s4e_worker
+    restart: always
+    env_file:
+      - .env
+    command: >
+      celery -A app.core.celery_app:celery_app
+      worker -l info -Q os,katana
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  flower:
+    image: mher/flower
+    container_name: s4e_flower
+    restart: always
+    ports:
+      - "5555:5555"
+    command: >
+      flower --broker=amqp://s4e_broker:s4e_broker_pass@rabbitmq:5672/s4e
+    depends_on:
+      - rabbitmq
+
+volumes:
+  postgres_data:
