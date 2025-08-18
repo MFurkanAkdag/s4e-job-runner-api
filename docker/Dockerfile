@@ -1,5 +1,5 @@
 # ---- Base image ----
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 # ---- Ortam değişkenleri ----
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -14,16 +14,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Katana binary ----
-RUN apt-get update && apt-get install -y unzip \
-    && curl -L https://github.com/projectdiscovery/katana/releases/download/v1.1.4/katana_1.1.4_linux_amd64.zip -o katana.zip \
-    && unzip katana.zip -d /usr/local/bin/ \
-    && rm katana.zip
-
-
+RUN curl -L https://github.com/projectdiscovery/katana/releases/download/v1.2.1/katana_1.2.1_linux_amd64.zip -o katana.zip \
+    && unzip katana.zip -d katana-bin \
+    && mv katana-bin/katana /usr/local/bin/katana \
+    && rm -rf katana.zip katana-bin
 
 # ---- Proje dosyaları ----
 WORKDIR /app
-COPY .. .
+COPY . .
 
 # ---- Python bağımlılıkları ----
 RUN pip install --no-cache-dir --upgrade pip \
@@ -31,4 +29,3 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # ---- Varsayılan komut ----
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
