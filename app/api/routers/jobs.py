@@ -1,4 +1,4 @@
-#app/api/routers/jobs.py
+# app/api/routers/jobs.py
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def trigger_os_job(
     run = JobRun(
         job_type=JobType.os.value,
         status=RunStatus.QUEUED.value,
-        input_payload=body.model_dump(),
+        input_payload=body.model_dump(mode="json"),  # FIX
         idempotency_key=idem_key,
     )
     db.add(run)
@@ -86,7 +86,7 @@ def trigger_katana_job(
     run = JobRun(
         job_type=JobType.katana.value,
         status=RunStatus.QUEUED.value,
-        input_payload=body.model_dump(),
+        input_payload=body.model_dump(mode="json"),  # FIX
         idempotency_key=idem_key,
     )
     db.add(run)
