@@ -14,14 +14,10 @@ from app.db.session import get_session
 
 def require_api_key(x_api_key: Annotated[Optional[str], Header(alias="X-API-Key")] = None) -> None:
     expected = (settings.api_key or "").strip()
-    # Boş bıraktıysan korumayı devre dışı bırak (local dev kolaylığı)
     if not expected:
-        return
-
-    # "changeme" ile prod çalıştırmayı engelle
+        return  # dev için kapalı
     if expected == "changeme":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid server API key")
-
     if x_api_key != expected:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
 

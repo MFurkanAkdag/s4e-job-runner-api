@@ -1,6 +1,9 @@
 # app/core/celery_app.py
 from celery import Celery
 from app.core.config import settings
+from dotenv import load_dotenv
+
+load_dotenv()
 
 celery_app = Celery(
     "jobrunner",
