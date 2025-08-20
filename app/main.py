@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.session import check_db_connection
 from app.core.logging import logger
@@ -30,6 +31,14 @@ app = FastAPI(
     version="0.1.0",
     description="RESTful API for running OS commands and Katana scans asynchronously",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # test için tümünü açtık
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Exception handler’ları yükle

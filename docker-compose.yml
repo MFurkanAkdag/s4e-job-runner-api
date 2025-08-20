@@ -15,6 +15,19 @@ services:
       - postgres
       - rabbitmq
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: s4e_frontend
+    ports:
+      - "5173:80"   # tarayıcıdan http://localhost:5173 ile aç
+    env_file:
+      - .env
+    depends_on:
+      - api
+
+
   worker:
     build:
       context: .
@@ -49,15 +62,17 @@ services:
       - "5672:5672"   # AMQP
       - "15672:15672" # Management UI
     environment:
+      RABBITMQ_DEFAULT_USER: s4e_user
+      RABBITMQ_DEFAULT_PASS: s4e_pass
       RABBITMQ_DEFAULT_VHOST: s4e
-      RABBITMQ_DEFAULT_USER: s4e_broker
-      RABBITMQ_DEFAULT_PASS: s4e_broker_pass
-
 
   flower:
     image: mher/flower
     container_name: s4e_flower
-    command: celery --broker=amqp://s4e_user:s4e_pass@rabbitmq:5672/s4e flower --port=5555
+    command: >
+      celery --broker=amqp://s4e_user:s4e_pass@s4e_rabbitmq:5672/s4e
+             --result-backend=rpc://
+             flower --port=5555
     ports:
       - "5555:5555"
     depends_on:

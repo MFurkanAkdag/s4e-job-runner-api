@@ -9,7 +9,7 @@ celery_app = Celery(
     "jobrunner",
     broker=settings.broker_url,
     backend=settings.result_backend,
-    include=["app.workers.jobs"],   # <-- EKLE
+    include=["app.workers.jobs"],
 )
 
 _default_soft = max(int(settings.os_cmd_timeout), int(settings.katana_timeout))
