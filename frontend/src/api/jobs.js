@@ -6,18 +6,6 @@ export const getHealth = async () => {
   return res.data;
 };
 
-// Job run listesini getir
-export const getJobRuns = async () => {
-  const res = await client.get("/job-runs");
-  return res.data;
-};
-
-// Belirli job’un sonuçlarını getir
-export const getResults = async (runId) => {
-  const res = await client.get(`/results/${runId}`);
-  return res.data;
-};
-
 // OS job tetikle
 export const triggerOsJob = async (payload) => {
   const res = await client.post("/jobs/os", payload);
@@ -30,7 +18,10 @@ export const triggerKatanaJob = async (payload) => {
   return res.data;
 };
 
-export const fetchResults = async () => {
-  const res = await client.get("/results");
+// Job run listesini getir (pagination + filtreleme destekli)
+export const getJobRuns = async ({ limit = 10, offset = 0, status, job_type } = {}) => {
+  const res = await client.get("/job-runs", {
+    params: { limit, offset, status, job_type },
+  });
   return res.data;
 };

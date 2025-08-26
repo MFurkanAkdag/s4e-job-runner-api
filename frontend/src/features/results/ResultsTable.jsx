@@ -42,7 +42,7 @@ const ResultsTable = ({rows}) => {
     ];
 
     return (
-        <div style={{height: "calc(100vh - 200px)", width: "100%"}}>
+        <div style={{height: 400, width: "100%"}}>
             <DataGrid
                 rows={rows}
                 columns={columns}

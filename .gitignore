@@ -1,11 +1,61 @@
-
-# never commit keys
+# ============================================================
+# 🔐 GÜVENLİK - Asla commit edilmemesi gereken dosyalar
+# ============================================================
+# SSH, sertifika, private key dosyaları
 id_ed25519*
-*.pem
-*.key
-
-# never commit keys
 *ed25519*
 *.pem
 *.key
+
+# Environment dosyaları
 .env
+.env.local
+
+# ============================================================
+# 📝 Log dosyaları
+# ============================================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================================
+# 📦 Node.js / Frontend
+# ============================================================
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ============================================================
+# 🐍 Python / Backend
+# ============================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.venv/
+celerybeat-schedule
+*.db
+
+# Alembic migration cache
+app/db/migrations/__pycache__/
+app/db/migrations/versions/__pycache__/
+
+# ============================================================
+# 🛠 IDE / OS Dosyaları
+# ============================================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
