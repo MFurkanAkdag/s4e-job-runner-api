@@ -1,11 +1,13 @@
-#app/services/job_katana.py
-
+# app/services/job_katana.py
 from __future__ import annotations
 
 import os
 import re
 import subprocess
 import time
+import socket
+import ipaddress
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 
 from app.core.config import settings
@@ -17,6 +19,14 @@ from app.models.result import Result
 URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 SAMPLE_MAX = int(os.getenv("KATANA_SAMPLE_MAX", "20"))
 
+# Opsiyonel domain allow-list (virgül ayrılmış)
+# Örn: KATANA_ALLOWED_HOSTS=example.com,mycorp.internal
+_ALLOWED_HOSTS = [
+    h.strip().lower()
+    for h in (os.getenv("KATANA_ALLOWED_HOSTS") or "").split(",")
+    if h.strip()
+]
+
 
 def _katana_exists() -> bool:
     return os.path.isfile(settings.katana_bin) and os.access(settings.katana_bin, os.X_OK)
@@ -24,7 +34,12 @@ def _katana_exists() -> bool:
 
 def _katana_version() -> str | None:
     try:
-        out = subprocess.check_output([settings.katana_bin, "-version"], text=True, stderr=subprocess.STDOUT, timeout=5)
+        out = subprocess.check_output(
+            [settings.katana_bin, "-version"],
+            text=True,
+            stderr=subprocess.STDOUT,
+            timeout=5,
+        )
         return out.strip()
     except Exception:
         return None
@@ -47,8 +62,7 @@ def _build_katana_cmd(url: str, depth: int | None, args: dict[str, str] | None) 
 
 
 def _run_capture_lines(cmd: list[str], timeout: int) -> tuple[list[str], float]:
-    """Komutu çalıştırır; stdout satırlarını ve süreyi (ms) döndürür.
-       (Not: 2 değer döndürür; çağıran yerde de 2 değer beklenmelidir.)"""
+    """Komutu çalıştırır; stdout satırlarını ve süreyi (ms) döndürür."""
     start = time.perf_counter()
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
@@ -65,10 +79,56 @@ def _run_capture_lines(cmd: list[str], timeout: int) -> tuple[list[str], float]:
     return lines, dur_ms
 
 
+def _is_private_or_blocked(url_str: str) -> tuple[bool, str | None]:
+    """
+    SSRF koruması:
+      - localhost/loopback yasak
+      - private/link-local/reserved IP'ler yasak
+      - opsiyonel: KATANA_ALLOWED_HOSTS ile domain allow-list
+    """
+    try:
+        p = urlparse(url_str)
+    except Exception:
+        return True, "invalid url"
+
+    host = p.hostname
+    if not host:
+        return True, "invalid host"
+
+    # Doğrudan 'localhost' / IPv4 loopback engeli
+    if host.lower() in {"localhost", "127.0.0.1"}:
+        return True, "localhost not allowed"
+
+    # DNS çöz ve IP sınıfına bak
+    try:
+        ip = ipaddress.ip_address(socket.gethostbyname(host))
+        if any(
+            [
+                ip.is_private,
+                ip.is_loopback,
+                ip.is_link_local,
+                ip.is_reserved,
+                ip.is_multicast,
+            ]
+        ):
+            return True, "private/reserved address not allowed"
+    except Exception:
+        # Çözülemedi -> güvenlik gereği istersen engelleyebilirsin;
+        # burada engellemiyoruz, allow-list kontrolüne geçiyoruz.
+        pass
+
+    # Opsiyonel allow-list: tam eşleşme veya subdomain (endswith)
+    if _ALLOWED_HOSTS:
+        h = host.lower()
+        ok = any(h == ah or h.endswith("." + ah) for ah in _ALLOWED_HOSTS)
+        if not ok:
+            return True, "host not in allowed list"
+
+    return False, None
+
+
 def run_katana(run_id: str) -> None:
-    """
-    Worker tarafından çağrılır: Katana ile URL taraması yapar, sayıları kaydeder.
-    """
+    """Worker tarafından çağrılır: Katana ile URL taraması yapar, sayıları kaydeder."""
     with session_scope() as db:
         run: JobRun | None = db.get(JobRun, run_id)
         if not run:
@@ -86,6 +146,11 @@ def run_katana(run_id: str) -> None:
             if not isinstance(url, str) or not URL_RE.match(url):
                 raise ValueError("payload.url must be a valid http/https URL")
 
+            # SSRF kontrolü
+            blocked, reason = _is_private_or_blocked(url)
+            if blocked:
+                raise ValueError(f"target blocked: {reason}")
+
             depth = payload.get("depth")
             if depth is not None:
                 depth = int(depth)
@@ -101,7 +166,6 @@ def run_katana(run_id: str) -> None:
 
             cmd = _build_katana_cmd(url, depth, args)
 
-            # DİKKAT: _run_capture_lines 2 değer döndürür → 2 değişkene aç
             lines, dur_ms = _run_capture_lines(cmd, timeout)
             urls = [ln for ln in lines if URL_RE.match(ln)]
             uniq = list(dict.fromkeys(urls))  # stable dedup
